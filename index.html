@@ -778,7 +778,7 @@ function buildPlayerMesh(p) {
   visor.rotation.z = -Math.PI / 2;
   grp.add(visor);
 
-  // Stick — parent to right-hand bone if available so it follows the rig
+  // Stick — fixed offset relative to player group (bone attachment swung wildly with run anim)
   const stickGrp = new THREE.Group();
   const shaft = new THREE.Mesh(
     new THREE.CylinderGeometry(0.045, 0.045, 1.9, 8),
@@ -789,37 +789,15 @@ function buildPlayerMesh(p) {
   stickGrp.add(shaft);
   const stickHead = new THREE.Mesh(
     new THREE.BoxGeometry(0.5, 0.36, 0.2),
-    new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.85, metalness: 0.0 })
+    new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.6, metalness: 0.0 })
   );
   stickHead.position.set(2.0, 0, 0);
   stickGrp.add(stickHead);
 
-  let handBone = null;
-  if (charRoot) {
-    charRoot.traverse(o => {
-      if (o.isBone && !handBone) {
-        const n = o.name.toLowerCase();
-        if (n.includes("righthand") || n.includes("right_hand") || n.endsWith(":righthand") || n === "hand_r") handBone = o;
-      }
-    });
-    // Fallback: any hand bone
-    if (!handBone) {
-      charRoot.traverse(o => {
-        if (o.isBone && !handBone && o.name.toLowerCase().includes("hand")) handBone = o;
-      });
-    }
-  }
-  if (handBone) {
-    // Stick scale needs to compensate for character scale (1.4) and bone-local space
-    stickGrp.scale.setScalar(1.0 / 1.4);
-    stickGrp.position.set(0, 0, 0);
-    stickGrp.rotation.set(0, 0, 0);
-    handBone.add(stickGrp);
-  } else {
-    // Fallback to floating-in-front position
-    stickGrp.position.set(0.5, 1.7, 0);
-    grp.add(stickGrp);
-  }
+  // Fixed offset, slight forward tilt — reads as "held in front of right hand"
+  stickGrp.position.set(0.55, 1.65, -0.05);
+  stickGrp.rotation.y = -0.25;
+  grp.add(stickGrp);
 
   // Ring under feet (controlled-player highlight)
   const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
@@ -1790,30 +1768,24 @@ function syncScene(dt) {
 let camShake = 0; // decays over time after a goal/big check
 function updateCamera(dt) {
   let tcx, tcy, tcz, tlx, tly, tlz;
-  const broadcast = state.phase === "menu" || state.phase === "ready" || state.phase === "goal" || state.phase === "end";
+  const wideShot = state.phase === "menu" || state.phase === "end";
 
-  if (broadcast || !state.controlled) {
-    // Cinematic broadcast: lower angle, pulled back
+  if (wideShot) {
+    // Beauty shot for menu / end-of-match
     tcx = 0; tcy = 36; tcz = 78;
     tlx = 0; tly = 2; tlz = 0;
   } else {
-    const c = state.controlled;
-    let dirX = Math.cos(c.facing);
-    let dirZ = Math.sin(c.facing);
-    const attackDirX = c.side === "home" ? 1 : -1;
-    const blend = 0.45;
-    dirX = dirX * (1 - blend) + attackDirX * blend;
-    const m = Math.hypot(dirX, dirZ) || 1;
-    dirX /= m; dirZ /= m;
-
-    const px = c.x - FIELD_W / 2;
-    const pz = c.y - FIELD_H / 2;
-    tcx = px - dirX * 14;
-    tcy = 8;
-    tcz = pz - dirZ * 14;
-    tlx = px + dirX * 6;
-    tly = 1.8;
-    tlz = pz + dirZ * 6;
+    // FIFA / 2K-style broadcast: stable side angle, pans with the ball along the field length
+    const b = state.ball;
+    const bx = b.x - FIELD_W / 2;
+    const bz = b.y - FIELD_H / 2;
+    const aim = state.controlled ? (state.controlled.side === "home" ? 1 : -1) : 0;
+    tcx = clamp(bx * 0.85, -32, 32);
+    tcy = 24;
+    tcz = 46;                  // fixed sideline distance (south side of field)
+    tlx = bx + aim * 4;
+    tly = 1.5;
+    tlz = bz * 0.4;            // bias look toward field center so both halves stay framed
   }
 
   const k = 1 - Math.exp(-dt * 3.5);
