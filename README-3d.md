@@ -2,8 +2,8 @@
 
 Two playable versions live side-by-side:
 
-- `index.html` — original 2D top-down (zero deps, opens directly).
-- `index3d.html` — Three.js + Rapier 3D port with PBR field, HDRI sky, rigged characters, full ball physics, post-FX bloom, and synthesized audio.
+- `index.html` — **3D edition** (default): Three.js + Rapier with PBR field, HDRI sky, rigged characters, full ball physics, post-FX bloom, and synthesized audio.
+- `index2d.html` — original 2D top-down (zero deps, opens directly).
 
 ## Run locally
 
@@ -15,8 +15,8 @@ python3 -m http.server 8765
 
 Then open:
 
-- 2D: <http://localhost:8765/index.html>
-- 3D: <http://localhost:8765/index3d.html>
+- 3D (default): <http://localhost:8765/>
+- 2D fallback: <http://localhost:8765/index2d.html>
 
 ## Controls
 
